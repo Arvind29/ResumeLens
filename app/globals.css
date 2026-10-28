@@ -355,3 +355,86 @@ textarea::placeholder { color: #a3afb3; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+
+/* Requirement-level resume evidence */
+.status-partial {
+  color: #8d641b;
+  background: #fff4de;
+  border-color: #ecd5a4;
+}
+.evidence-snippet {
+  margin-top: 14px;
+  padding: 13px 14px;
+  border: 1px solid #dbe8e5;
+  border-radius: 9px;
+  background: #f7fbfa;
+}
+.evidence-snippet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.evidence-snippet-head strong {
+  color: #245f5a;
+  font-size: 11px;
+  letter-spacing: .02em;
+}
+.evidence-snippet-head span {
+  color: #72817f;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.evidence-snippet blockquote {
+  margin: 0;
+  padding-left: 11px;
+  border-left: 2px solid #85b7af;
+  color: #3d515b;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.evidence-terms {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.evidence-terms > span {
+  margin-right: 3px;
+  color: #74828a;
+  font-size: 10px;
+}
+.evidence-terms em {
+  padding: 4px 7px;
+  border: 1px solid #d2e7e2;
+  border-radius: 5px;
+  background: #eaf5f2;
+  color: #276f67;
+  font-size: 10px;
+  font-style: normal;
+}
+.evidence-empty {
+  border-color: #efe4ce;
+  background: #fffcf6;
+}
+.evidence-empty strong {
+  color: #916921;
+  font-size: 11px;
+}
+.evidence-empty p {
+  margin: 5px 0 0;
+  color: #6f6b60;
+  font-size: 11px;
+  line-height: 1.65;
+}
+@media (max-width: 560px) {
+  .evidence-snippet-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}
