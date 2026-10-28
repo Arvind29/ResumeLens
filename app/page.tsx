@@ -89,11 +89,14 @@ export default function Home() {
         ).value;
       } else if (extension === "pdf") {
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+        // Use a same-origin worker matching the installed PDF.js package.
+        // It is copied from node_modules into /public before dev/build.
+        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.mjs";
         const bytes = new Uint8Array(await file.arrayBuffer());
-        // Avoid the unsupported isEvalSupported option from mismatched PDF.js typings.
         const pdf = await pdfjs.getDocument({
           data: bytes,
           useSystemFonts: true,
+          isEvalSupported: false,
         }).promise;
 
         const pages: string[] = [];
