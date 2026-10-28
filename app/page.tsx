@@ -54,14 +54,14 @@ export default function Home() {
           const page = await pdf.getPage(pageNumber);
           const content = await page.getTextContent();
           const textItems = content.items
-            .filter((item): item is typeof item & { str: string } => "str" in item && typeof item.str === "string")
-            .map((item) => {
-              const positioned = item as typeof item & { transform?: number[] };
-              return {
-                text: item.str,
+            .flatMap((entry) => {
+              if (!("str" in entry) || typeof entry.str !== "string") return [];
+              const positioned = entry as unknown as { str: string; transform?: number[] };
+              return [{
+                text: positioned.str,
                 x: typeof positioned.transform?.[4] === "number" ? positioned.transform[4] : 0,
                 y: typeof positioned.transform?.[5] === "number" ? positioned.transform[5] : 0,
-              };
+              }];
             })
             .filter((item) => item.text.trim().length > 0)
             .sort((a, b) => b.y - a.y || a.x - b.x);
