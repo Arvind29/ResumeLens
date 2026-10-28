@@ -162,11 +162,16 @@ export default function Home() {
 
   const scoreSummary = useMemo(() => {
     if (!result) return "";
-    if (result.overall >= 80) return "Strong textual alignment";
-    if (result.overall >= 60) return "Promising, with targeted gaps";
-    if (result.overall >= 40) return "Several areas to investigate";
-    return "Reposition the evidence before applying";
+    if (result.overall >= 80) return "Strong text alignment";
+    if (result.overall >= 60) return "Some good matches, with gaps to check";
+    if (result.overall >= 40) return "Review the key requirements first";
+    return "Make the most relevant experience easier to find";
   }, [result]);
+
+  const strongRequirementCount = result?.requirements.filter((item) => item.evidenceStrength === "Strong").length ?? 0;
+  const requiredNeedsReview = result?.requirements.filter((item) => item.kind === "Required" && item.evidenceStrength !== "Strong").length ?? 0;
+  const matchedSkillCount = result?.skills.reduce((sum, group) => sum + group.matched.length, 0) ?? 0;
+  const totalSkillCount = result?.skills.reduce((sum, group) => sum + group.matched.length + group.missing.length, 0) ?? 0;
 
   return (
     <main>
@@ -238,7 +243,47 @@ export default function Home() {
       {result && (
         <section className="results-wrap" id="analysis-results" aria-live="polite">
           <div className="results-topline"><div className="micro-label">ANALYSIS COMPLETE / 02</div><button className="export-button" onClick={downloadReport}><span>↓</span> Export JSON report</button></div>
-          <div className="results-heading"><div><h2>Your role-fit intelligence</h2><p>Text-derived evidence, structured into an actionable review.</p></div><span className="scope-pill"><i /> {result.confidenceLabel}</span></div>
+          <div className="results-heading"><div><h2>Your results</h2><p>A quick summary first, followed by the details behind each finding.</p></div><span className="scope-pill"><i /> {result.confidenceLabel}</span></div>
+
+          <section className="quick-summary" aria-labelledby="quick-summary-title">
+            <div className="quick-summary-head">
+              <div><div className="micro-label">START HERE</div><h3 id="quick-summary-title">What should you do next?</h3><p>Review these three areas first. You do not need to fix everything at once.</p></div>
+            </div>
+            <div className="quick-summary-grid">
+              <article className="quick-summary-card">
+                <span className="summary-number">01</span>
+                <div className="summary-card-copy">
+                  <span className="summary-kicker">JOB REQUIREMENTS</span>
+                  {requiredNeedsReview > 0 ? <h4>{requiredNeedsReview} required {requiredNeedsReview === 1 ? "item needs" : "items need"} a closer look</h4> : <h4>No required items were flagged for review</h4>}
+                  <p>{requiredNeedsReview > 0 ? "The resume may describe relevant experience differently. Check the evidence before changing the wording." : "The text comparison found strong matches. Confirm that each one reflects your actual experience."}</p>
+                  <button className="text-action-button" onClick={() => setActiveTab("requirements")}>Review requirements <span>↗</span></button>
+                </div>
+              </article>
+              <article className="quick-summary-card">
+                <span className="summary-number">02</span>
+                <div className="summary-card-copy">
+                  <span className="summary-kicker">SKILLS</span>
+                  <h4>{matchedSkillCount} of {totalSkillCount} recognized skills found</h4>
+                  <p>Check the missing skills list. Add a skill only when your experience supports it.</p>
+                  <button className="text-action-button" onClick={() => setActiveTab("overview")}>Review skills <span>↗</span></button>
+                </div>
+              </article>
+              <article className="quick-summary-card">
+                <span className="summary-number">03</span>
+                <div className="summary-card-copy">
+                  <span className="summary-kicker">RESULTS IN YOUR RESUME</span>
+                  <h4>{result.metricBulletCount} of {result.bulletCount} example lines include a measurable signal</h4>
+                  <p>Where possible, show a real result, such as time saved, volume handled, or errors reduced.</p>
+                  <button className="text-action-button" onClick={() => setActiveTab("overview")}>Review examples <span>↗</span></button>
+                </div>
+              </article>
+            </div>
+            <div className="quick-steps">
+              <h4>Your first steps</h4>
+              <ol>{result.recommendations.slice(0, 3).map((item, index) => <li key={item}><span>{index + 1}</span><p>{item}</p></li>)}</ol>
+            </div>
+            <p className="plain-language-note"><strong>Important:</strong> these are text-based estimates, not an official ATS score or a prediction of whether you will get an interview.</p>
+          </section>
 
           <div className="dashboard-grid">
             <div className="fit-card">
@@ -249,14 +294,17 @@ export default function Home() {
                 </div>
                 <div className="fit-copy"><h3>{scoreSummary}</h3><p>Based on job requirement language, recognized skills, keyword overlap, resume structure, and achievement evidence.</p><span className="fit-foot">Not an official ATS score or hiring prediction.</span></div>
               </div>
-              <div className="score-components">
-                {result.scoreItems.map((item) => <div className="score-component" key={item.label}><div className="score-component-head"><span>{item.label}</span><strong>{item.score}<small>/100</small></strong></div><Meter value={item.score} tone={item.score >= 70 ? "green" : item.score < 40 ? "amber" : "teal"} /><div className="score-detail"><span>{item.detail}</span><b>{item.weight}% weight</b></div></div>)}
-              </div>
+              <details className="score-breakdown">
+                <summary>How is this estimate calculated?</summary>
+                <div className="score-components">
+                  {result.scoreItems.map((item) => <div className="score-component" key={item.label}><div className="score-component-head"><span>{item.label}</span><strong>{item.score}<small>/100</small></strong></div><Meter value={item.score} tone={item.score >= 70 ? "green" : item.score < 40 ? "amber" : "teal"} /><div className="score-detail"><span>{item.detail}</span><b>{item.weight}% weight</b></div></div>)}
+                </div>
+              </details>
             </div>
             <div className="insight-column">
-              <div className="metric-card"><div className="metric-top"><span>SKILL COVERAGE</span><span className="metric-icon">⌘</span></div><div className="metric-value">{result.skillCoverage}<small>%</small></div><Meter value={result.skillCoverage} tone={result.skillCoverage >= 70 ? "green" : "teal"} /><p>Recognized skills found in both texts.</p><div className="metric-bottom"><span>{result.skills.reduce((sum, group) => sum + group.matched.length, 0)} matched</span><span>{result.skills.reduce((sum, group) => sum + group.missing.length, 0)} potential gaps</span></div></div>
-              <div className="metric-card"><div className="metric-top"><span>REQUIREMENT COVERAGE</span><span className="metric-icon">◎</span></div><div className="metric-value">{result.requirementsCoverage}<small>%</small></div><Meter value={result.requirementsCoverage} tone={result.requirementsCoverage >= 70 ? "green" : "teal"} /><p>Weighted phrase overlap with extracted job statements.</p><div className="metric-bottom"><span>{result.requirements.filter((item) => item.kind === "Required" && !item.matched).length} required gaps</span><span>{result.requirements.length} statements reviewed</span></div></div>
-              <div className="metric-card compact-metric"><div className="metric-top"><span>ACHIEVEMENT EVIDENCE</span><span className="metric-icon">↗</span></div><div className="metric-value">{result.metricBulletCount}<small>/{result.bulletCount}</small></div><p>Detected bullets or sentences containing measurable signals.</p><span className="metric-caption">Metrics can be counts, scale, time, cost or percentages.</span></div>
+              <div className="metric-card"><div className="metric-top"><span>SKILLS FOUND</span><span className="metric-icon">⌘</span></div><div className="metric-value">{result.skillCoverage}<small>%</small></div><Meter value={result.skillCoverage} tone={result.skillCoverage >= 70 ? "green" : "teal"} /><p>Skills named in both the job description and your resume.</p><div className="metric-bottom"><span>{result.skills.reduce((sum, group) => sum + group.matched.length, 0)} matched</span><span>{result.skills.reduce((sum, group) => sum + group.missing.length, 0)} potential gaps</span></div></div>
+              <div className="metric-card"><div className="metric-top"><span>JOB REQUIREMENTS</span><span className="metric-icon">◎</span></div><div className="metric-value">{result.requirementsCoverage}<small>%</small></div><Meter value={result.requirementsCoverage} tone={result.requirementsCoverage >= 70 ? "green" : "teal"} /><p>How much the job's requirement wording overlaps with your resume text.</p><div className="metric-bottom"><span>{result.requirements.filter((item) => item.kind === "Required" && !item.matched).length} required gaps</span><span>{result.requirements.length} statements reviewed</span></div></div>
+              <div className="metric-card compact-metric"><div className="metric-top"><span>MEASURABLE RESULTS</span><span className="metric-icon">↗</span></div><div className="metric-value">{result.metricBulletCount}<small>/{result.bulletCount}</small></div><p>Resume lines that include numbers or measurable outcomes.</p><span className="metric-caption">Metrics can be counts, scale, time, cost or percentages.</span></div>
             </div>
           </div>
 
@@ -278,7 +326,7 @@ export default function Home() {
 
           {activeTab === "requirements" && (
             <div className="tab-content">
-              <div className="section-headline"><div><div className="micro-label">JOB-TO-RESUME TRACEABILITY</div><h3>Requirement evidence matrix</h3><p>These are potential text matches, not proof of qualification or lack of qualification.</p></div><span className="mini-counter">{result.requirements.length} statements</span></div>
+              <div className="section-headline"><div><div className="micro-label">JOB-TO-RESUME TRACEABILITY</div><h3>Job requirements: what your resume shows</h3><p>For each job requirement, see the closest text found in your resume. A weak match does not mean you lack the skill.</p></div><span className="mini-counter">{result.requirements.length} statements</span></div>
               {result.requirements.length ? <div className="requirement-list">{result.requirements.map((item, index) => <article className="requirement-item" key={index}><div className="req-number">{String(index + 1).padStart(2, "0")}</div><div className="req-main"><div className="req-meta"><span className={"requirement-type type-" + item.kind.toLowerCase()}>{item.kind}</span><span className={"req-status " + (item.evidenceStrength === "Strong" ? "status-found" : item.evidenceStrength === "Partial" ? "status-partial" : "status-gap")}>{item.evidenceStrength === "Strong" ? "Strong text match" : item.evidenceStrength === "Partial" ? "Partial text match" : "Needs manual review"}</span></div><p>{item.text}</p><div className="req-evidence"><Meter value={item.coverage} tone={item.matched ? "green" : "amber"} /><span>{item.coverage}% phrase coverage</span></div><small>{item.evidence}</small>{item.resumeEvidence ? <div className="evidence-snippet"><div className="evidence-snippet-head"><strong>Closest resume excerpt</strong><span>{item.evidenceStrength} · {item.coverage}% overlap</span></div><blockquote>{item.resumeEvidence}</blockquote>{item.evidenceTerms.length > 0 && <div className="evidence-terms"><span>Shared terms</span>{item.evidenceTerms.map((term) => <em key={term}>{term}</em>)}</div>}</div> : <div className="evidence-snippet evidence-empty"><strong>No clear excerpt match</strong><p>The review did not find a convincing text excerpt for this statement. Check for equivalent wording or add evidence only if it reflects real experience.</p></div>}</div></article>)}</div> : <div className="empty-state">No clear requirement statements could be extracted. Try pasting the whole job description with bullets and qualification sections.</div>}
               <div className="method-note"><span>i</span><p><strong>How to read this:</strong> statement importance is inferred from wording such as “required” or “preferred”; phrase coverage is based on matching terms. Review the original statement and your actual experience before deciding what to change.</p></div>
             </div>
@@ -288,7 +336,7 @@ export default function Home() {
             <div className="tab-content">
               <div className="section-headline"><div><div className="micro-label">DOCUMENT READINESS</div><h3>Resume quality diagnostics</h3><p>Structural and content cues detected from extracted text. Visual layout is not assessed.</p></div><span className="mini-counter">{result.quality.filter((item) => item.level !== "good").length} to review</span></div>
               <div className="quality-grid">{result.quality.map((item) => <article className="quality-card" key={item.title}><div className="quality-card-head"><span className={"quality-icon quality-icon-" + item.level}>{item.level === "good" ? "✓" : item.level === "review" ? "↗" : "!"}</span><LevelTag level={item.level} /></div><div className="quality-category">{item.category}</div><h4>{item.title}</h4><p>{item.detail}</p></article>)}</div>
-              <div className="section-headline bullet-headline"><div><div className="micro-label">ACTION PLAN</div><h3>Prioritized next steps</h3><p>Suggestions are generated from the gaps detected above.</p></div></div>
+              <div className="section-headline bullet-headline"><div><div className="micro-label">ACTION PLAN</div><h3>Prioritized next steps</h3><p>Start with the first few actions. Only make changes that reflect your real experience.</p></div></div>
               <div className="action-plan">{result.recommendations.map((item, index) => <div className="action-item" key={item}><span>{String(index + 1).padStart(2, "0")}</span><p>{item}</p><b>{index === 0 ? "HIGH PRIORITY" : index < 4 ? "REVIEW" : "FINAL CHECK"}</b></div>)}</div>
             </div>
           )}
