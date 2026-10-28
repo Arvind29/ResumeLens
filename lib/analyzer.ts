@@ -6,6 +6,9 @@ export type RequirementFinding = {
   matched: boolean;
   evidence: string;
   coverage: number;
+  evidenceStrength: "Strong" | "Partial" | "None";
+  resumeEvidence: string;
+  evidenceTerms: string[];
 };
 
 export type SkillGroup = {
@@ -221,6 +224,83 @@ function hasActionVerb(line: string): boolean {
   return ACTION_VERBS.some((verb) => new RegExp("\\b" + verb + "\\b", "i").test(lower));
 }
 
+function evidenceLines(resume: string): string[] {
+  const fragments = resume
+    .replace(/\u00ad/g, "")
+    .split(/\n+/)
+    .flatMap((rawLine) => {
+      const line = rawLine.replace(/^[\s•●▪◦*–—-]+/, "").replace(/\s+/g, " ").trim();
+      if (!line) return [];
+      if (line.length <= 280) return [line];
+      return line.split(/(?<=[.!?;])\s+/).filter((part) => part.length >= 25 && part.length <= 280);
+    })
+    .filter((line) => {
+      const count = words(line).length;
+      return count >= 3 && count <= 70 && line.length >= 18;
+    });
+  const sentences = resume
+    .split(/(?<=[.!?])\s+/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter((line) => words(line).length >= 4 && words(line).length <= 55 && line.length >= 24 && line.length <= 280);
+  return Array.from(new Set([...fragments, ...sentences])).slice(0, 240);
+}
+
+function findRequirementEvidence(resume: string, requirement: string): {
+  coverage: number;
+  evidenceStrength: "Strong" | "Partial" | "None";
+  resumeEvidence: string;
+  evidenceTerms: string[];
+} {
+  const reqTerms = Array.from(new Set(words(requirement)));
+  const candidates = evidenceLines(resume);
+  if (!reqTerms.length || !candidates.length) {
+    return { coverage: 0, evidenceStrength: "None", resumeEvidence: "", evidenceTerms: [] };
+  }
+
+  const candidateTermSets = candidates.map((line) => new Set(words(line)));
+  const documentFrequency = new Map<string, number>();
+  for (const term of reqTerms) {
+    documentFrequency.set(term, candidateTermSets.filter((terms) => terms.has(term)).length);
+  }
+  const weights = new Map<string, number>();
+  for (const term of reqTerms) {
+    const df = documentFrequency.get(term) ?? 0;
+    // Terms that appear in fewer resume excerpts carry more discriminative weight.
+    weights.set(term, 1 + Math.log((candidateTermSets.length + 1) / (df + 1)));
+  }
+  const totalWeight = reqTerms.reduce((sum, term) => sum + (weights.get(term) ?? 1), 0);
+
+  let bestLine = "";
+  let bestTerms: string[] = [];
+  let bestScore = 0;
+  let exactPhrase = false;
+  for (let i = 0; i < candidates.length; i++) {
+    const line = candidates[i];
+    const terms = candidateTermSets[i];
+    const overlap = reqTerms.filter((term) => terms.has(term));
+    const weighted = overlap.reduce((sum, term) => sum + (weights.get(term) ?? 1), 0);
+    const score = totalWeight ? weighted / totalWeight : 0;
+    const exact = normalize(line).includes(normalize(requirement));
+    const adjusted = exact ? 1 : score;
+    if (adjusted > bestScore) {
+      bestScore = adjusted;
+      bestLine = line;
+      bestTerms = overlap;
+      exactPhrase = exact;
+    }
+  }
+
+  const coverage = Math.max(0, Math.min(100, Math.round(bestScore * 100)));
+  const evidenceStrength: "Strong" | "Partial" | "None" =
+    exactPhrase || coverage >= 55 ? "Strong" : coverage >= 28 ? "Partial" : "None";
+  return {
+    coverage,
+    evidenceStrength,
+    resumeEvidence: bestLine.length > 240 ? bestLine.slice(0, 237) + "…" : bestLine,
+    evidenceTerms: bestTerms.slice(0, 8),
+  };
+}
+
 function meaningfulRequirementCoverage(requirements: RequirementFinding[]): number {
   if (!requirements.length) return 0;
   let total = 0;
@@ -265,22 +345,21 @@ export function analyzeResume(resume: string, job: string): ResumeAnalysis {
     : Math.round((exactMatched.length / Math.max(1, jobTerms.length)) * 100);
 
   const requirements = splitRequirements(job).map((requirement) => {
-    const phraseTerms = words(requirement.text);
-    const overlaps = phraseTerms.filter((term) => resumeTerms.has(term)).length;
-    const coverage = phraseTerms.length
-      ? Math.round((overlaps / phraseTerms.length) * 100)
-      : 0;
-    const matched = phrasePresent(resume, requirement.text);
+    const found = findRequirementEvidence(resume, requirement.text);
+    const matched = found.evidenceStrength === "Strong";
     return {
       text: requirement.text,
       kind: requirement.kind,
-      matched: matched || coverage >= 67,
-      evidence: matched || coverage >= 67
-        ? "Similar language found in resume"
-        : coverage >= 35
-          ? "Partial language overlap; review for equivalent experience"
-          : "No clear textual evidence found",
-      coverage: matched ? Math.max(coverage, 75) : coverage,
+      matched,
+      evidence: found.evidenceStrength === "Strong"
+        ? "Strong textual overlap with a specific resume excerpt"
+        : found.evidenceStrength === "Partial"
+          ? "Partial overlap with a specific resume excerpt; confirm equivalence manually"
+          : "No strong excerpt-level evidence found; this does not mean the candidate lacks the capability",
+      coverage: found.coverage,
+      evidenceStrength: found.evidenceStrength,
+      resumeEvidence: found.resumeEvidence,
+      evidenceTerms: found.evidenceTerms,
     };
   });
 
