@@ -96,7 +96,6 @@ export default function Home() {
         const pdf = await pdfjs.getDocument({
           data: bytes,
           useSystemFonts: true,
-          isEvalSupported: false,
         }).promise;
 
         const pages: string[] = [];
@@ -125,9 +124,11 @@ export default function Home() {
       setResume(text);
       setFileName(file.name);
       setStatus("Resume text extracted. Review it before analysis.");
-    } catch {
+    } catch (error) {
+      console.error("ResumeLens file extraction failed:", error);
+      const detail = error instanceof Error ? error.message : "Unexpected file parser error";
       setStatus(
-        "Could not read this file. Try another document or paste the resume text."
+        `Could not read this file (${detail}). Try another document or paste the resume text.`
       );
     } finally {
       setBusy(false);
