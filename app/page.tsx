@@ -53,7 +53,37 @@ export default function Home() {
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
           const page = await pdf.getPage(pageNumber);
           const content = await page.getTextContent();
-          pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
+          const textItems = content.items
+            .filter((item): item is typeof item & { str: string } => "str" in item && typeof item.str === "string")
+            .map((item) => {
+              const positioned = item as typeof item & { transform?: number[] };
+              return {
+                text: item.str,
+                x: typeof positioned.transform?.[4] === "number" ? positioned.transform[4] : 0,
+                y: typeof positioned.transform?.[5] === "number" ? positioned.transform[5] : 0,
+              };
+            })
+            .filter((item) => item.text.trim().length > 0)
+            .sort((a, b) => b.y - a.y || a.x - b.x);
+
+          // PDF.js provides individual text fragments; restore approximate visual line breaks
+          // so section detection, bullet diagnostics and evidence mapping retain context.
+          const rows: Array<{ y: number; items: typeof textItems }> = [];
+          for (const item of textItems) {
+            let row = rows.find((candidate) => Math.abs(candidate.y - item.y) <= 2);
+            if (!row) {
+              row = { y: item.y, items: [] as unknown as typeof textItems };
+              rows.push(row);
+            }
+            row.items.push(item);
+          }
+          pages.push(
+            rows
+              .sort((a, b) => b.y - a.y)
+              .map((row) => row.items.sort((a, b) => a.x - b.x).map((item) => item.text).join(" ").replace(/\s+/g, " ").trim())
+              .filter(Boolean)
+              .join("\n")
+          );
         }
         extracted = pages.join("\n\n");
       } else {
@@ -249,7 +279,7 @@ export default function Home() {
           {activeTab === "requirements" && (
             <div className="tab-content">
               <div className="section-headline"><div><div className="micro-label">JOB-TO-RESUME TRACEABILITY</div><h3>Requirement evidence matrix</h3><p>These are potential text matches, not proof of qualification or lack of qualification.</p></div><span className="mini-counter">{result.requirements.length} statements</span></div>
-              {result.requirements.length ? <div className="requirement-list">{result.requirements.map((item, index) => <article className="requirement-item" key={index}><div className="req-number">{String(index + 1).padStart(2, "0")}</div><div className="req-main"><div className="req-meta"><span className={"requirement-type type-" + item.kind.toLowerCase()}>{item.kind}</span><span className={item.matched ? "req-status status-found" : "req-status status-gap"}>{item.matched ? "Possible evidence found" : "Needs manual review"}</span></div><p>{item.text}</p><div className="req-evidence"><Meter value={item.coverage} tone={item.matched ? "green" : "amber"} /><span>{item.coverage}% phrase coverage</span></div><small>{item.evidence}</small></div></article>)}</div> : <div className="empty-state">No clear requirement statements could be extracted. Try pasting the whole job description with bullets and qualification sections.</div>}
+              {result.requirements.length ? <div className="requirement-list">{result.requirements.map((item, index) => <article className="requirement-item" key={index}><div className="req-number">{String(index + 1).padStart(2, "0")}</div><div className="req-main"><div className="req-meta"><span className={"requirement-type type-" + item.kind.toLowerCase()}>{item.kind}</span><span className={"req-status " + (item.evidenceStrength === "Strong" ? "status-found" : item.evidenceStrength === "Partial" ? "status-partial" : "status-gap")}>{item.evidenceStrength === "Strong" ? "Strong text match" : item.evidenceStrength === "Partial" ? "Partial text match" : "Needs manual review"}</span></div><p>{item.text}</p><div className="req-evidence"><Meter value={item.coverage} tone={item.matched ? "green" : "amber"} /><span>{item.coverage}% phrase coverage</span></div><small>{item.evidence}</small>{item.resumeEvidence ? <div className="evidence-snippet"><div className="evidence-snippet-head"><strong>Closest resume excerpt</strong><span>{item.evidenceStrength} · {item.coverage}% overlap</span></div><blockquote>{item.resumeEvidence}</blockquote>{item.evidenceTerms.length > 0 && <div className="evidence-terms"><span>Shared terms</span>{item.evidenceTerms.map((term) => <em key={term}>{term}</em>)}</div>}</div> : <div className="evidence-snippet evidence-empty"><strong>No clear excerpt match</strong><p>The review did not find a convincing text excerpt for this statement. Check for equivalent wording or add evidence only if it reflects real experience.</p></div>}</div></article>)}</div> : <div className="empty-state">No clear requirement statements could be extracted. Try pasting the whole job description with bullets and qualification sections.</div>}
               <div className="method-note"><span>i</span><p><strong>How to read this:</strong> statement importance is inferred from wording such as “required” or “preferred”; phrase coverage is based on matching terms. Review the original statement and your actual experience before deciding what to change.</p></div>
             </div>
           )}
