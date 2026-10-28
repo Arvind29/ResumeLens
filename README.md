@@ -1,16 +1,18 @@
 # ResumeLens
 
-A responsive resume-to-job-description comparison tool built with Next.js, React, and TypeScript.
+ResumeLens is a responsive, browser-based resume intelligence workspace built with Next.js, React and TypeScript.
 
-## Features
+## Analysis features
 
-- Upload PDF, DOCX, or TXT resumes, or paste resume text.
-- Compare resume language against a pasted job description.
-- Review matched keywords and potential keyword gaps.
-- Receive practical resume-improvement suggestions.
-- Export a plain-text analysis report.
-- Responsive desktop and mobile layout.
-- Resume parsing and keyword matching are handled in the browser.
+- Upload PDF, DOCX, or TXT resumes, or paste resume and job-description text.
+- Weighted role-alignment estimate across requirements, recognized skills, terminology overlap, document structure, and achievement evidence.
+- Skill coverage map with recognized aliases and potential gaps.
+- Requirement-to-resume phrase coverage, including likely required, preferred and responsibility statements.
+- Resume quality checks for contact details, conventional sections, achievement signals, action verbs, length and role alignment.
+- Bullet-level diagnostics highlighting action-oriented language and measurable outcome signals.
+- Prioritized recommendations and downloadable JSON analysis report.
+- Responsive desktop and mobile workspace.
+- PDF.js worker copied from the installed package during development/build so that browser extraction uses a matching worker version.
 
 ## Local development
 
@@ -28,8 +30,8 @@ npm run build
 npm start
 ```
 
-## Important limitations
+## Analysis and privacy limits
 
-The match percentage is a simple keyword-overlap estimate. It is not an official ATS score, candidate-quality assessment, or prediction of hiring outcomes. Scanned PDFs requiring OCR are not supported. Keyword gaps are suggestions to review, not terms to add unless they accurately reflect the candidate's experience.
+All text extraction and heuristic analysis run in the browser; the application does not store uploaded documents or send resume text to an AI API. PDF and DOCX parsing use client-side libraries. Scanned PDFs that require OCR are not supported.
 
-The application does not send resume or job-description text to a server for matching. File text extraction uses client-side libraries.
+The alignment score is a transparent heuristic, not an official ATS score, prediction of hiring outcomes, or assessment of candidate worth. Requirement importance and phrase matching are inferred from text and may miss synonyms, context, formatting and nuanced qualifications. Potential gaps are not proof that a candidate lacks a skill. Review findings and add only accurate, supportable experience. Visual layout, document accessibility and actual ATS behavior are not fully evaluated.
